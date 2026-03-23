@@ -1,22 +1,25 @@
-# Melody-Factory
+# 🎸 Melody Factory
 
-Un Idle Game sur le thème de la Musique !
+Un idle game musical — clique sur la guitare, gagne des notes, améliore ton équipement et deviens une légende de la musique.
 
-#Projet 1 de la teamMew
+## Fait par
 
-Bonjour de la part de Kuider, Prescillia, Sophie, et Stacy.
-<br>
-Bienvenue à vous qui êtes intéressés par notre projet.
-(Feel free to fork !)
+Kuider
 
-guitarClick.addEventListener("click", (e) => {
-    score += clickValue;
-    updateDisplay();
-    spawnFloatingNumbers(e);
-});
+## Comment jouer
 
-setInterval(() => {
-    score += passiveValue;
-    updateDisplay();
+- **Clique** sur la guitare pour gagner des notes
+- Achète des **talents** (gauche) pour augmenter les notes par clic
+- Achète de la **popularité** (droite) pour générer des notes automatiquement
+- Monte de **niveau** pour débloquer un nouveau skin de guitare
+- Change de **style musical** dans les paramètres ⚙️ (Lo-Fi, K-Pop, Jazz, Rock, Électro, Classique)
 
-}, 1000);
+## Technologies
+
+- HTML / CSS / JavaScript (vanilla)
+- Firebase Realtime Database (stats communauté)
+- Musique : Kevin MacLeod — CC BY 3.0 (incompetech.com)
+
+## Lancer le projet
+
+Ouvre simplement `index.html` dans un navigateur — aucune installation requise.
