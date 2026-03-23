@@ -505,6 +505,7 @@ html[data-admin="true"] .header-community { display: flex; }
 .button-guitar {
     width: 260px; height: 400px; display: block;
     object-fit: contain;
+    object-position: center bottom;
     filter: drop-shadow(0 0 22px var(--glow-md));
     transition: filter .4s ease;
 }

@@ -201,15 +201,15 @@ function canUpgrade(upgrade) {
 let cassetteQuantity = 0;
 let cassettePrice = 100;
 let albumQuantity = 0;
-let albumPrice = 200;
+let albumPrice = 500;
 let ticketQuantity = 0;
-let ticketPrice = 400;
+let ticketPrice = 1500;
 let placesConcertQuantity = 0;
-let placesConcertPrice = 800;
+let placesConcertPrice = 3000;
 let casqueQuantity = 0;
-let casquePrice = 1600;
+let casquePrice = 6000;
 let worldTourQuantity = 0;
-let worldTourPrice = 3200;
+let worldTourPrice = 10000;
 
 //_____________Skins guitare par style musical et par niveau
 // Chaque style a sa guitare de base + une version améliorée au niveau 10
@@ -268,7 +268,7 @@ upgrades.forEach((up, index) => {
 
             // 5. Calcul des gains
             clickValue += (index + 1);
-            up.price = Math.floor(up.price * 1.3);
+            up.price = Math.floor(up.price * 1.15);
 
             // 6. Mise à jour UI
             refreshButtonInfo(buttonElement, up.level, up.price);
@@ -280,9 +280,22 @@ upgrades.forEach((up, index) => {
     }
 });
 
-function addIconToScene(imagePath) {
-    const img = document.createElement("img");
-    img.src = imagePath;
+function addIconToScene(content) {
+    let el;
+    if (content.startsWith('image/')) {
+        el = document.createElement("img");
+        el.src = content;
+    } else {
+        el = document.createElement("span");
+        el.textContent = content;
+        el.style.fontSize = '2em';
+        el.style.position = 'absolute';
+        el.style.filter = 'drop-shadow(0 2px 8px rgba(0,0,0,.9))';
+        el.style.userSelect = 'none';
+        el.style.transition = 'transform .3s ease';
+        el.addEventListener('mouseenter', () => el.style.transform = 'scale(1.15)');
+        el.addEventListener('mouseleave', () => el.style.transform = 'scale(1)');
+    }
 
     // Position aléatoire sur la scène (évite le centre où est la guitare)
     let randomX, randomY;
@@ -291,10 +304,10 @@ function addIconToScene(imagePath) {
         randomY = Math.random() * 75;
     } while (randomX > 35 && randomX < 65 && randomY > 40 && randomY < 80);
 
-    img.style.left = `${randomX}%`;
-    img.style.top = `${randomY}%`;
+    el.style.left = `${randomX}%`;
+    el.style.top = `${randomY}%`;
 
-    sceneUpgradesContainer.appendChild(img);
+    sceneUpgradesContainer.appendChild(el);
 }
 
 //_____________Fonctions d'améliorations passives
@@ -304,9 +317,9 @@ cassette.addEventListener("click", () => {
 
     score -= cassettePrice;
     cassetteQuantity += 1;
-    passiveValue += 0.05 * clickValue;
-    cassettePrice = cassettePrice * 2;
-    addIconToScene("image/PC Cassette.png");
+    passiveValue += 0.5 * clickValue;
+    cassettePrice = Math.floor(cassettePrice * 1.15);
+    addIconToScene("📼");
     refreshButtonInfo(cassette, cassetteQuantity, cassettePrice);
     updateDisplay();
     checkLevelUp();
@@ -319,9 +332,9 @@ album.addEventListener("click", () => {
 
     score -= albumPrice;
     albumQuantity += 1;
-    passiveValue += 0.1 * clickValue;
-    albumPrice = albumPrice * 2;
-    addIconToScene("image/Album.png");
+    passiveValue += 1.0 * clickValue;
+    albumPrice = Math.floor(albumPrice * 1.15);
+    addIconToScene("💿");
     refreshButtonInfo(album, albumQuantity, albumPrice);
     updateDisplay();
     checkLevelUp();
@@ -334,9 +347,9 @@ ticket.addEventListener("click", () => {
 
     score -= ticketPrice;
     ticketQuantity += 1;
-    passiveValue += 0.15 * clickValue;
-    ticketPrice = ticketPrice * 2;
-    addIconToScene("image/Ticket.png");
+    passiveValue += 1.5 * clickValue;
+    ticketPrice = Math.floor(ticketPrice * 1.15);
+    addIconToScene("🎫");
     refreshButtonInfo(ticket, ticketQuantity, ticketPrice);
     updateDisplay();
     checkLevelUp();
@@ -349,9 +362,9 @@ placesConcert.addEventListener("click", () => {
 
     score -= placesConcertPrice;
     placesConcertQuantity += 1;
-    passiveValue += 0.2 * clickValue;
-    placesConcertPrice = placesConcertPrice * 2;
-    addIconToScene("image/Places de concert.png");
+    passiveValue += 2.0 * clickValue;
+    placesConcertPrice = Math.floor(placesConcertPrice * 1.15);
+    addIconToScene("🏟️");
     refreshButtonInfo(placesConcert, placesConcertQuantity, placesConcertPrice);
     updateDisplay();
     checkLevelUp();
@@ -364,9 +377,9 @@ casque.addEventListener("click", () => {
 
     score -= casquePrice;
     casqueQuantity += 1;
-    passiveValue += 0.25 * clickValue;
-    casquePrice = casquePrice * 2;
-    addIconToScene("image/Casque.png");
+    passiveValue += 2.5 * clickValue;
+    casquePrice = Math.floor(casquePrice * 1.15);
+    addIconToScene("🎧");
     refreshButtonInfo(casque, casqueQuantity, casquePrice);
     updateDisplay();
     checkLevelUp();
@@ -379,9 +392,9 @@ worldTour.addEventListener("click", () => {
 
     score -= worldTourPrice;
     worldTourQuantity += 1;
-    passiveValue += 0.3 * clickValue;
-    worldTourPrice = worldTourPrice * 2;
-    addIconToScene("image/PC World tour.png");
+    passiveValue += 3.0 * clickValue;
+    worldTourPrice = Math.floor(worldTourPrice * 1.15);
+    addIconToScene("🌍");
     refreshButtonInfo(worldTour, worldTourQuantity, worldTourPrice);
     updateDisplay();
     checkLevelUp();
