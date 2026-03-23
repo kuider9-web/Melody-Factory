@@ -3,18 +3,18 @@
 ╔╗ ┬ ┬  ╔╦╗┌─┐┌─┐┌┬┐  ╔╦╗┌─┐┬ ┬
 ╠╩╗└┬┘   ║ ├┤ ├─┤│││  ║║║├┤ │││
 ╚═╝ ┴    ╩ └─┘┴ ┴┴ ┴  ╩ ╩└─┘└┴┘
- ,  ,                            , _                                 
-/|_/        o  _|   _  ,_       /|/ \ ,_   _  ,   _  o |\ |\ o  _,   
- |\   |  |  | / |  |/ /  |       |__//  | |/ / \_/   | |/ |/ | / |   
+ ,  ,                            , _
+/|_/        o  _|   _  ,_       /|/ \ ,_   _  ,   _  o |\ |\ o  _,
+ |\   |  |  | / |  |/ /  |       |__//  | |/ / \_/   | |/ |/ | / |
  | \_/ \/|_/|/\/|_/|_/   |/o     |      |/|_/ \/ \__/|/|_/|_/|/\/|_/o
                                                                     /
- ()  _      |)   o  _      ()      ()_|_  _,   _                    
- /\ / \_|/\_|/\  | |/      /\/     /\ |  / |  /   |  |               
-/(_)\_/ |_/ |  |/|/|_/o    \/\    /(_)|_/\/|_/\__/ \/|/o             
-       (|             /                             (|             
+ ()  _      |)   o  _      ()      ()_|_  _,   _
+ /\ / \_|/\_|/\  | |/      /\/     /\ |  / |  /   |  |
+/(_)\_/ |_/ |  |/|/|_/o    \/\    /(_)|_/\/|_/\__/ \/|/o
+       (|             /                             (|
            Date de création: 09 Décembre 2025
            Dernière modification : 19 Décembre 2025
-  
+
 */
 //_____________La base du jeu (variables, constantes, et fonctions primordiales)
 
@@ -22,26 +22,84 @@ let score = 0;
 let clickValue = 1;
 let passiveValue = 0;
 let currentSkinLevel = 0;
+let totalEarned = 0;
+
 const LEVEL_STEP = 10;
 const buttonLv = document.querySelector(".button-lv");
 const scoreDisplay = document.getElementById("score");
 const guitarClick = document.querySelector(".onclick");
 const sceneUpgradesContainer = document.querySelector(".scene-upgrades");
 
-function updateDisplay() {
-    scoreDisplay.textContent = Math.floor(score);
+//_____________Formatage des nombres
+function formatNumber(n) {
+    if (n < 1000) return Math.floor(n).toString();
+    if (n < 1000000) return (Math.floor(n / 100) / 10).toFixed(1) + 'K';
+    if (n < 1000000000) return (Math.floor(n / 100000) / 10).toFixed(1) + 'M';
+    return (Math.floor(n / 100000000) / 10).toFixed(1) + 'B';
 }
 
+//_____________Affichage
+function updateDisplay() {
+    scoreDisplay.textContent = formatNumber(score);
+
+    const perSecondEl = document.getElementById('per-second');
+    if (perSecondEl) perSecondEl.textContent = formatNumber(passiveValue) + ' notes/s';
+
+    const perClickEl = document.getElementById('per-click');
+    if (perClickEl) perClickEl.textContent = '+' + formatNumber(clickValue) + ' par clic';
+
+    const totalEarnedEl = document.getElementById('total-earned');
+    if (totalEarnedEl) totalEarnedEl.textContent = 'Total : ' + formatNumber(totalEarned);
+
+    updateAllButtonStates();
+}
+
+//_____________États visuels des boutons (abordable / non abordable)
+function updateAllButtonStates() {
+    // Upgrades TALENT
+    upgrades.forEach(up => {
+        const btn = document.querySelector(`.${up.name}`);
+        if (btn) {
+            const affordable = score >= up.price;
+            btn.setAttribute('data-affordable', affordable);
+            if (btn.closest('.upgrade-card')) btn.closest('.upgrade-card').setAttribute('data-affordable', affordable);
+        }
+    });
+
+    // Gains passifs
+    const passiveItems = [
+        { btn: cassette, price: cassettePrice },
+        { btn: album, price: albumPrice },
+        { btn: ticket, price: ticketPrice },
+        { btn: placesConcert, price: placesConcertPrice },
+        { btn: casque, price: casquePrice },
+        { btn: worldTour, price: worldTourPrice }
+    ];
+    passiveItems.forEach(item => {
+        if (item.btn) {
+            const affordable = score >= item.price;
+            item.btn.setAttribute('data-affordable', affordable);
+            if (item.btn.closest('.upgrade-card')) item.btn.closest('.upgrade-card').setAttribute('data-affordable', affordable);
+        }
+    });
+}
+
+//_____________Click sur la guitare
 guitarClick.addEventListener("click", (e) => {
-    score += clickValue;
+    const isCritical = Math.random() < 0.05;
+    const gained = isCritical ? clickValue * 10 : clickValue;
+    score += gained;
+    totalEarned += gained;
     updateDisplay();
-    spawnFloatingNumbers(e);
+    checkAchievements();
+    spawnFloatingNumbers(e, gained, isCritical);
 });
 
 setInterval(() => {
     score += passiveValue;
+    totalEarned += passiveValue;
     updateDisplay();
-
+    checkAchievements();
 }, 1000);
 
 //_____________Bouton Level Up doit être activé
@@ -55,6 +113,7 @@ function checkLevelUp() {
     } else {
         buttonLv.disabled = true;
     }
+    updateProgressBar();
 }
 
 buttonLv.addEventListener("click", () => {
@@ -63,37 +122,49 @@ buttonLv.addEventListener("click", () => {
     currentSkinLevel += LEVEL_STEP;
     updateGuitarSkin();
     buttonLv.disabled = true;
+    updateProgressBar();
 });
 
-function updateGuitarSkin() {
-    let selectedSkin = guitarSkins[0].src;
-
-    for (const skin of guitarSkins) {
-        if (currentSkinLevel >= skin.level) {
-            selectedSkin = skin.src;
-        }
-    }
-
-    guitarImg.src = selectedSkin;
+//_____________Barre de progression
+function updateProgressBar() {
+    const bar = document.querySelector('.progress-bar');
+    if (!bar) return;
+    const commonLevel = getCommonLevel();
+    const progress = (commonLevel % LEVEL_STEP) / LEVEL_STEP * 100;
+    bar.style.width = progress + '%';
 }
 
+//_____________Affichage des nombres au click
+const NOTE_SYMBOLS = ['♪', '♫', '♬', '🎵', '🎶'];
 
-//_____________Affichage des nombrea au click
-function spawnFloatingNumbers(e) {
+function spawnFloatingNumbers(e, value, isCritical) {
     const floatingText = document.createElement("span");
     floatingText.classList.add("floating-number");
-    floatingText.textContent = `+${clickValue}`;
+
+    const note = NOTE_SYMBOLS[Math.floor(Math.random() * NOTE_SYMBOLS.length)];
+
+    if (isCritical) {
+        floatingText.textContent = `${note} +${formatNumber(value)} CRITIQUE!`;
+        floatingText.style.color = '#f59e0b';
+        floatingText.style.fontSize = '1.9rem';
+        floatingText.style.textShadow = '0 0 12px rgba(245,158,11,.8), 0 0 24px rgba(239,68,68,.5)';
+    } else {
+        floatingText.textContent = `${note} +${formatNumber(value)}`;
+    }
+
     floatingText.style.left = `${e.clientX}px`;
     floatingText.style.top = `${e.clientY}px`;
-    const randomX = (Math.random() - 0.5) * 200; // Déplacement entre -100px et 100px
-    floatingText.style.setProperty('--random-x', `${randomX}px`);
+    const randomX = (Math.random() - 0.5) * 160;
+    floatingText.style.setProperty('--rx', `${randomX}px`);
+
+    const duration = isCritical ? 1500 : 1200;
+    floatingText.style.animationDuration = duration + 'ms';
 
     document.body.appendChild(floatingText);
     setTimeout(() => {
         floatingText.remove();
-    }, 1200);
+    }, duration);
 }
-
 
 
 //_____________Variables amélioration par click
@@ -140,15 +211,17 @@ let casquePrice = 1600;
 let worldTourQuantity = 0;
 let worldTourPrice = 3200;
 
-//_____________Constantes skin guitare par pallier de niveau
+//_____________Skins guitare par style musical et par niveau
+// Chaque style a sa guitare de base + une version améliorée au niveau 10
 
-const guitarSkins = [
-    { level: 0, src: "image/PC GUITAR Niveau1 1.png" },
-    { level: 10, src: "image/GUITAR Niveau2.png" },
-    { level: 20, src: "image/GUITAR Niveau3.png" },
-    { level: 30, src: "image/GUITAR Niveau4.png" },
-    { level: 40, src: "image/GUITAR Niveau5.png" }
-];
+const STYLE_GUITARS = {
+    lofi:      ['image/guitar-lofi.png'],
+    jazz:      ['image/guitar-jazz.png'],
+    kpop:      ['image/guitar-kpop.png'],
+    rock:      ['image/guitar-rock.png'],
+    electro:   ['image/guitar-electro.png'],
+    classical: ['image/guitar-classical.png'],
+};
 
 //_____________Création des boutons amélioration par click
 const mediator = document.querySelector(".mediator");
@@ -165,95 +238,6 @@ const ticket = document.querySelector(".ticket");
 const placesConcert = document.querySelector(".placesConcert");
 const casque = document.querySelector(".casque");
 const worldTour = document.querySelector(".worldTour");
-
-//_____________Fonctions d'améliorations par click
-/*_____________Ancienne méthode.
-mediator.addEventListener("click", () => {
-    if (score < mediatorPrice) return;
-    const up = upgrades.find(u => u.name === name);
-    if (!up) return console.error('Upgrade inconnu :', name);
-    if (!canUpgrade(up)) return;
-    score -= mediatorPrice;
-    mediatorLevel += 1;
-    clickValue += 1;
-    mediatorPrice = mediatorPrice * 1.3;
-    refreshButtonInfo(mediator, mediatorLevel, mediatorPrice);
-    updateDisplay();
-    checkLevelUp();
-});
-
-manche.addEventListener("click", () => {
-    if (score < manchePrice) return;
-    const up = upgrades.find(u => u.name === name);
-    if (!up) return console.error('Upgrade inconnu :', name);
-    if (!canUpgrade(up)) return;
-    score -= manchePrice;
-    mancheLevel += 1;
-    clickValue += 2;
-    manchePrice = manchePrice * 1.3;
-    refreshButtonInfo(manche, mancheLevel, manchePrice);
-    updateDisplay();
-    checkLevelUp();
-});
-
-ampli.addEventListener("click", () => {
-    if (score < ampliPrice) return;
-    const up = upgrades.find(u => u.name === name);
-    if (!up) return console.error('Upgrade inconnu :', name);
-    if (!canUpgrade(up)) return;
-    score -= ampliPrice;
-    ampliLevel += 1;
-    clickValue += 3;
-    ampliPrice = ampliPrice * 1.3;
-    refreshButtonInfo(ampli, ampliLevel, ampliPrice);
-    updateDisplay();
-    checkLevelUp();
-});
-
-micro.addEventListener("click", () => {
-    if (score < microPrice) return;
-    const up = upgrades.find(u => u.name === name);
-    if (!up) return console.error('Upgrade inconnu :', name);
-    if (!canUpgrade(up)) return;
-    score -= microPrice;
-    microLevel += 1;
-    clickValue += 4;
-    microPrice = microPrice * 1.3;
-    refreshButtonInfo(micro, microLevel, microPrice);
-    updateDisplay();
-    checkLevelUp();
-});
-
-corps.addEventListener("click", () => {
-    if (score < corpsPrice) return;
-    const up = upgrades.find(u => u.name === name);
-    if (!up) return console.error('Upgrade inconnu :', name);
-    if (!canUpgrade(up)) return;
-    score -= corpsPrice;
-    corpsLevel += 1;
-    clickValue += 5;
-    corpsPrice = corpsPrice * 1.3;
-    refreshButtonInfo(corps, corpsLevel, corpsPrice);
-    updateDisplay();
-    checkLevelUp();
-});
-
-mecanique.addEventListener("click", () => {
-    if (score < mecaniquePrice) return;
-    const up = upgrades.find(u => u.name === name);
-    if (!up) return console.error('Upgrade inconnu :', name);
-    if (!canUpgrade(up)) return;
-    score -= mecaniquePrice;
-    mecaniqueLevel += 1;
-    clickValue += 6;
-    mecaniquePrice = mecaniquePrice * 1.3;
-    refreshButtonInfo(mecanique, mecaniqueLevel, mecaniquePrice);
-    updateDisplay();
-<<<<<<< HEAD
-    checkLevelUp();
-});
-*/
-// Remplacez tout le bloc commenté (Ancienne méthode) par ceci :
 
 //_____________Gestion des améliorations par clic (TALENT)
 upgrades.forEach((up, index) => {
@@ -290,6 +274,8 @@ upgrades.forEach((up, index) => {
             refreshButtonInfo(buttonElement, up.level, up.price);
             updateDisplay();
             checkLevelUp();
+            updateProgressBar();
+            saveGame();
         });
     }
 });
@@ -298,9 +284,12 @@ function addIconToScene(imagePath) {
     const img = document.createElement("img");
     img.src = imagePath;
 
-    // Position aléatoire sur la scène
-    const randomX = Math.random() * 80; // entre 0 et 80%
-    const randomY = Math.random() * 80;
+    // Position aléatoire sur la scène (évite le centre où est la guitare)
+    let randomX, randomY;
+    do {
+        randomX = Math.random() * 85;
+        randomY = Math.random() * 75;
+    } while (randomX > 35 && randomX < 65 && randomY > 40 && randomY < 80);
 
     img.style.left = `${randomX}%`;
     img.style.top = `${randomY}%`;
@@ -321,6 +310,8 @@ cassette.addEventListener("click", () => {
     refreshButtonInfo(cassette, cassetteQuantity, cassettePrice);
     updateDisplay();
     checkLevelUp();
+    updateProgressBar();
+    saveGame();
 });
 
 album.addEventListener("click", () => {
@@ -334,6 +325,8 @@ album.addEventListener("click", () => {
     refreshButtonInfo(album, albumQuantity, albumPrice);
     updateDisplay();
     checkLevelUp();
+    updateProgressBar();
+    saveGame();
 });
 
 ticket.addEventListener("click", () => {
@@ -347,6 +340,8 @@ ticket.addEventListener("click", () => {
     refreshButtonInfo(ticket, ticketQuantity, ticketPrice);
     updateDisplay();
     checkLevelUp();
+    updateProgressBar();
+    saveGame();
 });
 
 placesConcert.addEventListener("click", () => {
@@ -360,6 +355,8 @@ placesConcert.addEventListener("click", () => {
     refreshButtonInfo(placesConcert, placesConcertQuantity, placesConcertPrice);
     updateDisplay();
     checkLevelUp();
+    updateProgressBar();
+    saveGame();
 });
 
 casque.addEventListener("click", () => {
@@ -373,6 +370,8 @@ casque.addEventListener("click", () => {
     refreshButtonInfo(casque, casqueQuantity, casquePrice);
     updateDisplay();
     checkLevelUp();
+    updateProgressBar();
+    saveGame();
 });
 
 worldTour.addEventListener("click", () => {
@@ -386,39 +385,19 @@ worldTour.addEventListener("click", () => {
     refreshButtonInfo(worldTour, worldTourQuantity, worldTourPrice);
     updateDisplay();
     checkLevelUp();
-});
-
-window.addEventListener('DOMContentLoaded', () => {
-    // Boutons d’amélioration par clic
-    refreshButtonInfo(mediator, mediatorLevel, mediatorPrice);
-    refreshButtonInfo(manche, mancheLevel, manchePrice);
-    refreshButtonInfo(ampli, ampliLevel, ampliPrice);
-    refreshButtonInfo(micro, microLevel, microPrice);
-    refreshButtonInfo(corps, corpsLevel, corpsPrice);
-    refreshButtonInfo(mecanique, mecaniqueLevel, mecaniquePrice);
-
-    // Boutons de gain passif (niveau = quantité possédée)
-    refreshButtonInfo(cassette, cassetteQuantity, cassettePrice);
-    refreshButtonInfo(album, albumQuantity, albumPrice);
-    refreshButtonInfo(ticket, ticketQuantity, ticketPrice);
-    refreshButtonInfo(placesConcert, placesConcertQuantity, placesConcertPrice);
-    refreshButtonInfo(casque, casqueQuantity, casquePrice);
-    refreshButtonInfo(worldTour, worldTourQuantity, worldTourPrice);
+    updateProgressBar();
+    saveGame();
 });
 
 function refreshButtonInfo(buttonEl, level, price) {
     const levelSpan = buttonEl.querySelector('.level');
     const priceSpan = buttonEl.querySelector('.price');
 
-    if (levelSpan) levelSpan.textContent = `Niv ${level}`;
-    if (priceSpan) {
-        const roundedPrice = Math.floor(price);
-        priceSpan.textContent = `${roundedPrice} €`;
-    }
-
+    if (levelSpan) levelSpan.textContent = `Niv ${level}`;
+    if (priceSpan) priceSpan.textContent = `${formatNumber(price)} 💰`;
 }
 
-//_____________Fonction pour calculuer le niveau global
+//_____________Fonction pour calculer le niveau global
 
 function getCommonLevel() {
     return Math.min(
@@ -436,112 +415,164 @@ function getCommonLevel() {
 const guitarImg = document.querySelector(".button-guitar");
 
 function updateGuitarSkin() {
+    const style = localStorage.getItem('melodyStyle') || 'lofi';
+    const skins = STYLE_GUITARS[style] || STYLE_GUITARS.lofi;
     const level = getCommonLevel();
-    let selectedSkin = guitarSkins[0].src;
+    const idx   = Math.min(Math.floor(level / LEVEL_STEP), skins.length - 1);
+    const newSrc = skins[idx];
 
-    for (const skin of guitarSkins) {
-        if (level >= skin.level) {
-            selectedSkin = skin.src;
+    if (guitarImg.src.endsWith(newSrc)) return; // déjà la bonne image
+
+    // Animation de swap
+    guitarImg.classList.add('skin-change');
+    setTimeout(() => {
+        guitarImg.src = newSrc;
+        guitarImg.classList.remove('skin-change');
+    }, 200);
+}
+
+// ================== SAUVEGARDE localStorage ==================
+
+function saveGame() {
+    const saveData = {
+        score,
+        clickValue,
+        passiveValue,
+        currentSkinLevel,
+        totalEarned,
+        upgrades: upgrades.map(u => ({ level: u.level, price: u.price })),
+        cassetteQuantity, cassettePrice,
+        albumQuantity, albumPrice,
+        ticketQuantity, ticketPrice,
+        placesConcertQuantity, placesConcertPrice,
+        casqueQuantity, casquePrice,
+        worldTourQuantity, worldTourPrice,
+        unlockedAchievements: Array.from(unlockedAchievements)
+    };
+    localStorage.setItem('melodyFactorySave', JSON.stringify(saveData));
+    showSaveToast();
+}
+
+function showSaveToast() {
+    const existing = document.querySelector('.save-toast');
+    if (existing) existing.remove();
+    const toast = document.createElement('div');
+    toast.className = 'save-toast';
+    toast.textContent = 'Sauvegardé !';
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 1500);
+}
+
+function loadGame() {
+    const raw = localStorage.getItem('melodyFactorySave');
+    if (!raw) return;
+    try {
+        const data = JSON.parse(raw);
+
+        score = data.score ?? 0;
+        clickValue = data.clickValue ?? 1;
+        passiveValue = data.passiveValue ?? 0;
+        currentSkinLevel = data.currentSkinLevel ?? 0;
+        totalEarned = data.totalEarned ?? 0;
+
+        if (data.upgrades) {
+            data.upgrades.forEach((saved, i) => {
+                upgrades[i].level = saved.level;
+                upgrades[i].price = saved.price;
+            });
+            mediatorLevel = upgrades[0].level;
+            mancheLevel = upgrades[1].level;
+            ampliLevel = upgrades[2].level;
+            microLevel = upgrades[3].level;
+            corpsLevel = upgrades[4].level;
+            mecaniqueLevel = upgrades[5].level;
+        }
+
+        cassetteQuantity = data.cassetteQuantity ?? 0;
+        cassettePrice = data.cassettePrice ?? 100;
+        albumQuantity = data.albumQuantity ?? 0;
+        albumPrice = data.albumPrice ?? 200;
+        ticketQuantity = data.ticketQuantity ?? 0;
+        ticketPrice = data.ticketPrice ?? 400;
+        placesConcertQuantity = data.placesConcertQuantity ?? 0;
+        placesConcertPrice = data.placesConcertPrice ?? 800;
+        casqueQuantity = data.casqueQuantity ?? 0;
+        casquePrice = data.casquePrice ?? 1600;
+        worldTourQuantity = data.worldTourQuantity ?? 0;
+        worldTourPrice = data.worldTourPrice ?? 3200;
+
+        if (data.unlockedAchievements) {
+            data.unlockedAchievements.forEach(id => unlockedAchievements.add(id));
+        }
+    } catch (e) {
+        console.error('Erreur chargement sauvegarde :', e);
+    }
+}
+
+// Sauvegarde automatique toutes les 10 secondes
+setInterval(saveGame, 10000);
+
+// ================== ACHIEVEMENTS ==================
+
+const ACHIEVEMENTS = [
+    { id: 'a100', threshold: 100, text: '🎵 Premier accord !' },
+    { id: 'a1000', threshold: 1000, text: '🎸 Guitariste en herbe' },
+    { id: 'a10000', threshold: 10000, text: '🎤 Star montante' },
+    { id: 'a100000', threshold: 100000, text: '🌟 Superstar' },
+    { id: 'a1000000', threshold: 1000000, text: '🏆 Légende de la musique' }
+];
+
+const unlockedAchievements = new Set();
+
+function checkAchievements() {
+    for (const ach of ACHIEVEMENTS) {
+        if (!unlockedAchievements.has(ach.id) && totalEarned >= ach.threshold) {
+            unlockedAchievements.add(ach.id);
+            showAchievementToast(ach.text);
         }
     }
-
-    guitarImg.src = selectedSkin;
 }
 
-// ================== PARAMÈTRES / LUMINOSITÉ ==================
-
-const settingsBtn = document.getElementById("settingsBtn");
-const settingsPanel = document.getElementById("settingsPanel");
-const brightnessSlider = document.getElementById("brightness");
-const brightnessValue = document.getElementById("brightnessValue");
-
-// Ouvrir / fermer le panneau
-settingsBtn.addEventListener("click", () => {
-    settingsPanel.classList.toggle("hidden");
-});
-
-// Charger la luminosité sauvegardée
-const savedBrightness = localStorage.getItem("brightness") || 100;
-brightnessSlider.value = savedBrightness;
-brightnessValue.textContent = `${savedBrightness}%`;
-document.documentElement.style.setProperty(
-    "--brightness",
-    `${savedBrightness}%`
-);
-
-// Modifier la luminosité
-brightnessSlider.addEventListener("input", () => {
-    const value = brightnessSlider.value;
-    brightnessValue.textContent = `${value}%`;
-    document.documentElement.style.setProperty("--brightness", `${value}%`);
-    localStorage.setItem("brightness", value);
-});
-
-// Fermer si clic en dehors
-document.addEventListener("click", (e) => {
-    if (!settingsPanel.contains(e.target) && !settingsBtn.contains(e.target)) {
-        settingsPanel.classList.add("hidden");
-    }
-});
-const audio = document.getElementById('monAudio');
-const toggleMusicBtn = document.getElementById('toggleMusic');
-
-function lancerMusiqueAutomatique() {
-    audio.play().then(() => {
-        document.removeEventListener('click', lancerMusiqueAutomatique);
-    }).catch(e => console.log("Attente d'interaction pour l'audio"));
-}
-document.addEventListener('click', lancerMusiqueAutomatique);
-
-// Gestion du bouton Play/Pause dans les paramètres
-toggleMusicBtn.addEventListener('click', () => {
-    if (audio.paused) {
-        audio.play();
-        toggleMusicBtn.textContent = "Pause";
-    } else {
-        audio.pause();
-        toggleMusicBtn.textContent = "Play";
-    }
-});
-
-
-
-function getIncrement(name) {
-    switch (name) {
-        case 'mediator': return 1;
-        case 'manche': return 2;
-        case 'ampli': return 3;
-        case 'micro': return 4;
-        case 'corps': return 5;
-        case 'mecanique': return 6;
-        default: return 0;
-    }
+function showAchievementToast(text) {
+    const toast = document.createElement('div');
+    toast.className = 'achievement-toast';
+    toast.textContent = text;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
 }
 
-document.querySelector('.mediator').addEventListener('click', () => tryUpgrade('mediator'));
-document.querySelector('.manche').addEventListener('click', () => tryUpgrade('manche'));
-document.querySelector('.ampli').addEventListener('click', () => tryUpgrade('ampli'));
-document.querySelector('.micro').addEventListener('click', () => tryUpgrade('micro'));
-document.querySelector('.corps').addEventListener('click', () => tryUpgrade('corps'));
-document.querySelector('.mecanique').addEventListener('click', () => tryUpgrade('mecanique'));
+// ================== PARAMÈTRES / LUMINOSITÉ / RESET ==================
+// Tout géré par le script inline dans index.html
+
+// ================== AUDIO ==================
+// ================== AUDIO ==================
+// Géré par MusicEngine (music-engine.js) + index.html
+
+// ================== INITIALISATION (DOMContentLoaded) ==================
 
 window.addEventListener('DOMContentLoaded', () => {
-    upgrades.forEach(u => {
-        const btn = document.querySelector(`.${u.name}`);
-        if (btn) refreshButtonInfo(btn, u.level, u.price);
+    // Charger la sauvegarde
+    loadGame();
+
+    // Boutons d'amélioration par clic
+    upgrades.forEach(up => {
+        const btn = document.querySelector(`.${up.name}`);
+        if (btn) refreshButtonInfo(btn, up.level, up.price);
     });
-});
 
-// Sélection des nouveaux éléments
-const volumeSlider = document.getElementById("volumeSlider");
-const volumeValue = document.getElementById("volumeValue");
+    // Boutons de gain passif
+    refreshButtonInfo(cassette, cassetteQuantity, cassettePrice);
+    refreshButtonInfo(album, albumQuantity, albumPrice);
+    refreshButtonInfo(ticket, ticketQuantity, ticketPrice);
+    refreshButtonInfo(placesConcert, placesConcertQuantity, placesConcertPrice);
+    refreshButtonInfo(casque, casqueQuantity, casquePrice);
+    refreshButtonInfo(worldTour, worldTourQuantity, worldTourPrice);
 
-// Initialisation du volume par défaut (50%)
-audio.volume = 0.5;
+    // Mettre à jour le skin guitare
+    updateGuitarSkin();
 
-// Écouteur pour changer le volume
-volumeSlider.addEventListener("input", () => {
-    const vol = volumeSlider.value;
-    audio.volume = vol; // Modifie le volume de l'élément <audio>
-    volumeValue.textContent = `${Math.round(vol * 100)}%`;
+    // Mettre à jour l'affichage complet
+    updateDisplay();
+    checkLevelUp();
+    updateProgressBar();
 });
